@@ -14,12 +14,7 @@ import subprocess
 import sys
 
 import cattrs
-from attr import define, field
-
-fname = sys.argv[1]
-
-p = subprocess.run(["lz4jsoncat", fname], capture_output=True, encoding="utf8")
-session = json.loads(p.stdout)
+from attr import define
 
 
 @define
@@ -85,12 +80,18 @@ class Session:
         return sum(w.tab_count for w in self.windows)
 
 
-c = cattrs.Converter()
-session = c.structure(session, Session)
+if __name__ == "__main__":
+    fname = sys.argv[1]
 
-for window in session.windows:
-    print(f"Window {window.zIndex} ({window.tab_count} tabs)")
-    for tab in window.tabs:
-        print(tab.url)
+    p = subprocess.run(["lz4jsoncat", fname], capture_output=True, encoding="utf8")
+    session = json.loads(p.stdout)
+
+    c = cattrs.Converter()
+    session = c.structure(session, Session)
+
+    for window in session.windows:
+        print(f"Window {window.zIndex} ({window.tab_count} tabs)")
+        for tab in window.tabs:
+            print(tab.url)
 
 # vim: ft=python : ts=4 : sw=4 : et
