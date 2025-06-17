@@ -18,13 +18,6 @@ from attr import define
 
 
 @define
-class SessionInfo:
-    lastUpdate: int
-    startTime: int
-    recentCrashes: int
-
-
-@define
 class Entry:
     url: str
     title: str
@@ -51,15 +44,6 @@ class Tab:
 @define
 class Window:
     tabs: list[Tab]
-    _lastClosedTabGroupCount: int
-    busy: bool
-    chromeFlags: int
-    sizemodeBeforeMinimized: str
-    width: int
-    height: int
-    screenX: int
-    screenY: int
-    sizemode: str
     zIndex: int
 
     @property
@@ -69,11 +53,7 @@ class Window:
 
 @define
 class Session:
-    version: tuple[str, int]
     windows: list[Window]
-    selectedWindow: int
-    session: SessionInfo
-    cookies: list
 
     @property
     def tab_count(self) -> int:
