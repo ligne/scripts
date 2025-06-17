@@ -1,0 +1,96 @@
+#!/usr/bin/env -S uv run --script
+#
+# Dump the tabs in a firefox session.
+#
+# /// script
+# dependencies = [
+#       "cattrs"
+# ]
+# ///
+from __future__ import annotations
+
+import json
+import subprocess
+import sys
+
+import cattrs
+from attr import define, field
+
+fname = sys.argv[1]
+
+p = subprocess.run(["lz4jsoncat", fname], capture_output=True, encoding="utf8")
+session = json.loads(p.stdout)
+
+
+@define
+class SessionInfo:
+    lastUpdate: int
+    startTime: int
+    recentCrashes: int
+
+
+@define
+class Entry:
+    url: str
+    title: str
+
+
+@define
+class Tab:
+    entries: list[Entry]
+    lastAccessed: int
+    hidden: bool
+    userContextId: int
+    attributes: dict
+    index: int
+
+    @property
+    def url(self) -> str:
+        return self.entries[self.index - 1].url
+
+    @property
+    def title(self) -> str:
+        return self.entries[self.index - 1].title
+
+
+@define
+class Window:
+    tabs: list[Tab]
+    _lastClosedTabGroupCount: int
+    busy: bool
+    chromeFlags: int
+    sizemodeBeforeMinimized: str
+    width: int
+    height: int
+    screenX: int
+    screenY: int
+    sizemode: str
+    zIndex: int
+
+    @property
+    def tab_count(self) -> int:
+        return len(self.tabs)
+
+
+@define
+class Session:
+    version: tuple[str, int]
+    windows: list[Window]
+    selectedWindow: int
+    session: SessionInfo
+    cookies: list
+
+    @property
+    def tab_count(self) -> int:
+        return sum(w.tab_count for w in self.windows)
+
+
+c = cattrs.Converter()
+session = c.structure(session, Session)
+
+for window in session.windows:
+    print(f"Window {window.zIndex} ({window.tab_count} tabs)")
+    for tab in window.tabs:
+        print(tab.url)
+
+# vim: ft=python : ts=4 : sw=4 : et
