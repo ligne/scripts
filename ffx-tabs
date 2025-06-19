@@ -12,14 +12,15 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+from urllib.parse import ParseResult, urlparse
 
 import cattrs
-from attr import define
+from attr import define, field
 
 
 @define
 class Entry:
-    url: str
+    url: ParseResult = field(converter=urlparse)
     title: str
 
 
@@ -60,11 +61,21 @@ class Session:
         return sum(w.tab_count for w in self.windows)
 
 
+def format_url(url: ParseResult, fmt: str = "") -> str:
+    try:
+        return url.geturl() if fmt == "" else fmt.format(**url._asdict())
+    except KeyError as e:
+        available = ", ".join(url._asdict())
+        print(f"Invalid field {e}. Available fields: {available}")
+        exit()
+
+
 if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser()
     parser.add_argument("filename")
+    parser.add_argument("--format", default="")
 
     args = parser.parse_args()
 
@@ -77,6 +88,7 @@ if __name__ == "__main__":
     for window in session.windows:
         print(f"Window {window.zIndex} ({window.tab_count} tabs)")
         for tab in window.tabs:
-            print(tab.url)
+            print(format_url(tab.url, fmt=args.format))
+
 
 # vim: ft=python : ts=4 : sw=4 : et
