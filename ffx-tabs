@@ -4,17 +4,17 @@
 #
 # /// script
 # dependencies = [
-#       "cattrs"
+#       "cattrs",
+#       "lz4",
 # ]
 # ///
 from __future__ import annotations
 
 import json
-import subprocess
-import sys
 from urllib.parse import ParseResult, urlparse
 
 import cattrs
+import lz4.block
 from attr import define, field
 
 
@@ -79,11 +79,13 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    p = subprocess.run(["lz4jsoncat", args.filename], capture_output=True, encoding="utf8")
-    session = json.loads(p.stdout)
+    with open(args.filename, "rb") as fh:
+        if (magic := fh.read(8)) != b"mozLz40\0":
+            print(f"{args.filename}: Unrecognised magic number '{magic}'")
+        payload = lz4.block.decompress(fh.read())
 
     c = cattrs.Converter()
-    session = c.structure(session, Session)
+    session = c.structure(json.loads(payload.decode("utf8")), Session)
 
     for window in session.windows:
         print(f"Window {window.zIndex} ({window.tab_count} tabs)")
