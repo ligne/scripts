@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import json
+from collections import Counter
 from urllib.parse import ParseResult, urlparse
 
 import cattrs
@@ -76,6 +77,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("filename")
     parser.add_argument("--format", default="")
+    parser.add_argument("--summary", action="store_true")
 
     args = parser.parse_args()
 
@@ -87,10 +89,15 @@ if __name__ == "__main__":
     c = cattrs.Converter()
     session = c.structure(json.loads(payload.decode("utf8")), Session)
 
-    for window in session.windows:
-        print(f"Window {window.zIndex} ({window.tab_count} tabs)")
-        for tab in window.tabs:
-            print(format_url(tab.url, fmt=args.format))
+    if args.summary:
+        c = Counter(tab.url.netloc for window in session.windows for tab in window.tabs)
+        for url, count in c.most_common():
+            print(f"{count:4d}  {url}")
+    else:
+        for window in session.windows:
+            print(f"Window {window.zIndex} ({window.tab_count} tabs)")
+            for tab in window.tabs:
+                print(format_url(tab.url, fmt=args.format))
 
 
 # vim: ft=python : ts=4 : sw=4 : et
