@@ -1,0 +1,75 @@
+#!/usr/bin/python3
+#
+# like `watch -d` but with coloured, diff-like output
+#
+from __future__ import annotations
+
+import curses
+import difflib
+from enum import Enum
+import itertools
+import subprocess
+import sys
+import time
+import typing
+
+if typing.TYPE_CHECKING:
+    from collections.abc import Iterable
+
+# invoke as `$0 command args
+#
+# TODO
+#   faster start-up
+#   support {NO_}COLOR, etc.
+#   how to handle stderr
+
+
+class Colour(Enum):
+    STD = 0
+    ADD = 1
+    DEL = 2
+
+
+def _repeat_command(cmd: list[str], interval: int = 2) -> Iterable[str]:
+    # FIXME detect when it's *really* failed (bad/missing command) and explode
+    while True:
+        p = subprocess.run(cmd, capture_output=True, encoding="utf8")
+        if p.returncode == 0:
+            yield p.stdout.splitlines(keepends=True)
+        time.sleep(interval)
+
+
+def _diff(fromlines: list[str], tolines: list[str]) -> tuple[Colour, str]:
+    s = difflib.SequenceMatcher(None, fromlines, tolines)
+
+    for tag, i1, i2, j1, j2 in s.get_opcodes():
+        match tag:
+            case "replace":
+                yield from ((Colour.DEL, f"- {line}") for line in fromlines[i1:i2])
+                yield from ((Colour.ADD, f"+ {line}") for line in tolines[j1:j2])
+            case "delete":
+                yield from ((Colour.DEL, f"- {line}") for line in fromlines[i1:i2])
+            case "insert":
+                yield from ((Colour.ADD, f"+ {line}") for line in tolines[j1:j2])
+            case "equal":
+                yield from ((Colour.STD, f"  {line}") for line in fromlines[i1:i2])
+
+
+def main(stdscr) -> None:
+    cmd = sys.argv[1:]
+    interval = 2
+
+    curses.use_default_colors()
+    curses.init_pair(Colour.ADD.value, curses.COLOR_GREEN, -1)
+    curses.init_pair(Colour.DEL.value, curses.COLOR_RED, -1)
+
+    for old, new in itertools.pairwise(_repeat_command(cmd, interval)):
+        for ix, (colour, line) in enumerate(list(_diff(old, new))[: curses.LINES - 1]):
+            stdscr.addstr(ix, 0, line, curses.color_pair(colour.value))
+        stdscr.refresh()
+
+
+if __name__ == "__main__":
+    curses.wrapper(main)
+
+# vim: ft=python : ts=4 : sw=4 : et
