@@ -13,8 +13,10 @@ import sys
 import time
 import typing
 
+
 if typing.TYPE_CHECKING:
     from collections.abc import Iterable
+
 
 # invoke as `$0 command args
 #
@@ -39,20 +41,19 @@ def _repeat_command(cmd: list[str], interval: int = 2) -> Iterable[str]:
         time.sleep(interval)
 
 
-def _diff(fromlines: list[str], tolines: list[str]) -> tuple[Colour, str]:
-    s = difflib.SequenceMatcher(None, fromlines, tolines)
+COLOURS = {
+    "  ": Colour.STD,
+    "+ ": Colour.ADD,
+    "- ": Colour.DEL,
+}
 
-    for tag, i1, i2, j1, j2 in s.get_opcodes():
-        match tag:
-            case "replace":
-                yield from ((Colour.DEL, f"- {line}") for line in fromlines[i1:i2])
-                yield from ((Colour.ADD, f"+ {line}") for line in tolines[j1:j2])
-            case "delete":
-                yield from ((Colour.DEL, f"- {line}") for line in fromlines[i1:i2])
-            case "insert":
-                yield from ((Colour.ADD, f"+ {line}") for line in tolines[j1:j2])
-            case "equal":
-                yield from ((Colour.STD, f"  {line}") for line in fromlines[i1:i2])
+
+def _diff(fromlines: list[str], tolines: list[str]) -> Iterable[tuple[Colour, str]]:
+    return [
+        (COLOURS[prefix], line)
+        for line in difflib.Differ().compare(fromlines, tolines)
+        if (prefix := line[:2]) != "? "
+    ]
 
 
 def main(stdscr) -> None:
